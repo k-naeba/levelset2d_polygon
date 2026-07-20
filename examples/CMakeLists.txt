@@ -1,0 +1,2 @@
+add_executable(levelset2d_polygon_roundtrip_demo roundtrip_demo.cpp)
+target_link_libraries(levelset2d_polygon_roundtrip_demo PRIVATE levelset2d_polygon)
