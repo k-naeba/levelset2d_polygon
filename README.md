@@ -45,6 +45,13 @@ set itself rendered as a diverging-colormap heatmap (blue = inside, red =
 outside) with the source polygon outlined on top, via `svg.hpp`'s
 `ToSvg(const Grid2d<double>&, const Polygon2d&, ...)` overload.
 
+Its output (regenerate with
+`./build/examples/levelset2d_polygon_roundtrip_demo`):
+
+| original | level set heatmap | reconstructed |
+| --- | --- | --- |
+| <img src="docs/svg/original.svg" width="220"> | <img src="docs/svg/levelset_heatmap.svg" width="220"> | <img src="docs/svg/reconstructed.svg" width="220"> |
+
 ## Algorithm
 
 1. **`MarchCell`**: for each grid cell, classify its 4 corners as inside
