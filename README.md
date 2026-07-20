@@ -40,7 +40,10 @@ std::vector<ns_cg::Polygon2d> reconstructed = ns_ls2p::ExtractPolygons(field);
 
 See `examples/roundtrip_demo.cpp` for a runnable version, which also exports
 both the original and reconstructed shapes to SVG (via `common_geometry`'s
-`svg.hpp`) for visual comparison.
+`svg.hpp`) for visual comparison, plus `levelset_heatmap.svg`: the level
+set itself rendered as a diverging-colormap heatmap (blue = inside, red =
+outside) with the source polygon outlined on top, via `svg.hpp`'s
+`ToSvg(const Grid2d<double>&, const Polygon2d&, ...)` overload.
 
 ## Algorithm
 

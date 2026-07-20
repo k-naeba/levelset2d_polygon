@@ -55,6 +55,12 @@ int main() {
   style.stroke_width = 0.05;
   WriteSvgFile("original.svg", std::vector<Polygon2d>{original}, style);
   WriteSvgFile("reconstructed.svg", reconstructed, style);
-  std::cout << "wrote original.svg, reconstructed.svg\n";
+
+  SvgStyle heatmap_style;
+  heatmap_style.stroke = "black";
+  heatmap_style.stroke_width = 0.1;
+  WriteSvgFile("levelset_heatmap.svg", field, original, heatmap_style);
+
+  std::cout << "wrote original.svg, reconstructed.svg, levelset_heatmap.svg\n";
   return 0;
 }
