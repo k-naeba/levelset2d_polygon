@@ -106,11 +106,42 @@ Correctness beyond the hand-derived case table is validated empirically via
 area-convergence tests on known shapes (square, ring, circle approximation)
 rather than a formal proof.
 
+**Marching squares cannot reproduce a sharp right-angle corner, at any
+resolution.** Each grid cell only ever contributes straight segments, so a
+90-degree corner is always replaced by a diagonal cut through whichever
+cell it falls in, leaving two new vertices that are never actually 90
+degrees. `analysis/corner_chamfer_analysis.cpp` (see below) measures this
+directly.
+
+| original (sharp corners) | reconstructed (chamfered corners) |
+| --- | --- |
+| <img src="docs/svg/square_original_sharp_corners.svg" width="260"> | <img src="docs/svg/square_reconstructed_chamfered_corners.svg" width="260"> |
+
+Regenerate with `./build/analysis/levelset2d_polygon_corner_chamfer_analysis`;
+sample output (a 10x10 square, corner at the origin, coarsest vs. finest of
+the tested resolutions -- the defect is well-known enough that two data
+points make the point):
+
+```
+cells_across | cell_size | nearest vertex          | 2nd-nearest vertex
+-------------+-----------+--------------------------+------------------------
+           8 |    1.5000 | dist=  0.5000 angle=135.0000 | dist=  0.5000 angle=135.0000
+         120 |    0.1000 | dist=  0.1000 angle=135.0000 | dist=  0.1000 angle=135.0000
+```
+
+The interior angle at both vertices flanking the cut stays pinned at 135
+degrees (a 45-degree diagonal cut across a 90-degree corner) at both the
+coarse and fine resolution -- refining the grid shrinks how far the cut
+sits from the true corner, but never removes the angular defect itself.
+
 ## Directory layout
 
 ```
 levelset2d_polygon/
 ├── include/levelset2d_polygon/  Public headers (header-only library)
 ├── examples/                    Runnable demo
+├── analysis/                    Programs characterizing algorithmic behavior
+│                                 (not usage examples), e.g. the corner-chamfer
+│                                 measurement above
 └── tests/                       GoogleTest unit tests
 ```

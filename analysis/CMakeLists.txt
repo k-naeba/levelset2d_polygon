@@ -1,0 +1,2 @@
+add_executable(levelset2d_polygon_corner_chamfer_analysis corner_chamfer_analysis.cpp)
+target_link_libraries(levelset2d_polygon_corner_chamfer_analysis PRIVATE levelset2d_polygon)

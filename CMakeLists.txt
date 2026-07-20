@@ -33,3 +33,11 @@ option(LEVELSET2D_POLYGON_BUILD_EXAMPLES "Build example programs" ON)
 if(LEVELSET2D_POLYGON_BUILD_EXAMPLES)
   add_subdirectory(examples)
 endif()
+
+# Analysis programs are not usage examples -- they exist to characterize
+# algorithmic behavior (e.g. corner_chamfer_analysis.cpp), separate from
+# examples/ demonstrating how to call the library.
+option(LEVELSET2D_POLYGON_BUILD_ANALYSIS "Build analysis programs" ON)
+if(LEVELSET2D_POLYGON_BUILD_ANALYSIS)
+  add_subdirectory(analysis)
+endif()
