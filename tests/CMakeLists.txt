@@ -7,8 +7,10 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(googletest)
 
 add_executable(test_marching_squares test_marching_squares.cpp)
+add_executable(test_levelset2d_polygon
+  test_marching_squares.cpp)
 
-foreach(target test_marching_squares)
+foreach(target test_marching_squares test_levelset2d_polygon)
     target_link_libraries(${target}
         PRIVATE
             levelset2d_polygon
