@@ -103,6 +103,45 @@ See `analysis/corner_chamfer_analysis.cpp` below for a head-to-head comparison.
    (positive/CCW) or a hole (negative/CW); each hole is attached to
    whichever outer polygon contains it (`ns_cg::PointInPolygon`).
 
+**Pseudocode:**
+
+```
+function MarchCell(v00, v10, v11, v01, p00, p10, p11, p01):
+    in00 = v00 < 0; in10 = v10 < 0; in11 = v11 < 0; in01 = v01 < 0
+    case = in00 | in10<<1 | in11<<2 | in01<<3
+    if case == 0 or case == 15: return []   # fully outside / fully inside
+
+    B = Interpolate(p00, v00, p10, v10)     # bottom edge crossing
+    R = Interpolate(p10, v10, p11, v11)     # right edge crossing
+    T = Interpolate(p01, v01, p11, v11)     # top edge crossing
+    L = Interpolate(p00, v00, p01, v01)     # left edge crossing
+
+    if case in {5, 10}:                     # saddle: ambiguous from
+        center = (v00 + v10 + v11 + v01) / 4   # corners alone
+        return TwoSegmentsFor(case, center, B, R, T, L)
+    return [LookupTable[case](B, R, T, L)]  # one of the other 12 cases
+
+function Interpolate(pa, va, pb, vb):
+    t = va / (va - vb)
+    return pa + t * (pb - pa)               # zero crossing along a-b
+```
+
+**Diagram** (corner values: `v < 0` inside, `v >= 0` outside):
+
+```
+Case 1 -- only p00 inside:            Case 5 -- saddle (p00,p11 inside):
+
+   p01 o───T───o p11                     p01 o───T───o p11
+       │       │                             │  ╲ ╱  │
+       L       R                             L   x   R   <- ambiguous:
+       │       │                             │  ╱ ╲  │      resolved via
+   p00 x───B───o p10                     p00 x───B───x p10  center average
+  (inside)  (outside)                   segment: B->L, T->R
+  segment: B -> L                       (or B->R, T->L -- picked by
+  (inside kept on the left              whether center < 0)
+   of the travel direction)
+```
+
 ## Algorithm: dual contouring
 
 Reuses marching squares' case table verbatim (same 16 cases, same saddle
@@ -137,6 +176,44 @@ corner. See "Choosing an extraction method" above for how that plays out in
 practice (very good once resolution is fine enough, less impressive at
 coarse resolution).
 
+**Pseudocode:**
+
+```
+function ExtractPolygonsDualContouring(field):
+    gradients = EstimateGradients(field)        # central differences per node
+    segments = []
+    for each cell (i, j):
+        for each edge-crossing pair MarchCell's case table selects:
+            (p0, n0) = InterpolateNormal(edge_a, gradients)
+            (p1, n1) = InterpolateNormal(edge_b, gradients)
+            vertex = SolveQef(p0, n0, p1, n1)   # falls back to midpoint
+            segments.append(DualSegment{edge: (p0, p1), vertex})
+    loops = LinkIntoLoops([s.edge for s in segments])   # on the plain edges
+    return BuildPolygonsFromDualVertices(loops, segments)
+
+function SolveQef(p0, n0, p1, n1):
+    # minimize sum_k (n_k . (x - p_k))^2 over x -- a 2x2 least-squares solve
+    A = [n0; n1]                                # stack normals as rows
+    b = [n0 . p0; n1 . p1]
+    if det(A) is near 0:      # normals nearly parallel: boundary is
+        return (p0 + p1) / 2  # locally ~straight, nothing sharp to resolve
+    return solve(A, b)
+```
+
+**Diagram:**
+
+```
+Marching squares: vertex is        Dual contouring: vertex is pulled
+constrained to a cell edge         inside, toward where the two
+                                    crossings' tangent lines agree
+
+   p01●───────●p11                    p01●───────●p11
+      │      x│    x = edge              │   v   │   v = QEF(n0,n1),
+      │      /│      crossing            │  ╱ ╲  │       inside the cell,
+   p00●─────x─●p10                    p00●─┴───┴─●p10    closer to the
+                                                            true corner
+```
+
 ## Algorithm: surface nets
 
 A simpler sibling of dual contouring, reusing the same case table,
@@ -150,6 +227,32 @@ the *exact* corner angle as resolution increases the way dual contouring's
 does -- see the measured numbers in Limitations below (distance improves
 at both resolutions tested; angle does not reliably approach 90 degrees).
 
+**Pseudocode:**
+
+```
+function MarchCellSurfaceNets(v00, v10, v11, v01, p00, p10, p11, p01):
+    # identical case/saddle logic to MarchCell -- same case index, same
+    # center-average saddle disambiguation -- but each segment's vertex
+    # is just the midpoint of its two crossings. No gradient, no QEF.
+    for (a, b) in EdgeCrossingPairsFor(case, B, R, T, L):
+        vertex = (a + b) / 2
+        yield SurfaceNetsSegment{segment: (a, b), vertex}
+```
+
+**Diagram:**
+
+```
+Surface nets: vertex is the plain      Dual contouring: vertex pulled
+midpoint of the 2 crossings            toward the tangent-line intersection
+(no normals used)                      (normal-aware, closer to the corner)
+
+   p01●───────●p11                        p01●───────●p11
+      │  a╲   │                              │  a╲   │
+      │    v  │   v = (a+b)/2                │   v   │   v = QEF(n0,n1)
+      │   ╱  b│                              │  ╱  b │
+   p00●──┴────●p10                        p00●─┴─────●p10
+```
+
 ## Algorithm: rectilinear threshold
 
 A cell is "inside" if the average of its 4 corner samples is negative (no
@@ -160,6 +263,36 @@ the coordinate-compression step isn't needed here anyway): 4-connected
 flood-fill labeling, axis-aligned boundary-edge collection tagged with
 component id, loop linking, collinear-edge merging, and hole-to-outer
 attachment via `PointInPolygon`.
+
+**Pseudocode:**
+
+```
+function ExtractPolygonsRectilinearThreshold(field):
+    for each cell (col, row):
+        occupancy[col, row] = CellInside(field, col, row)  # avg of the
+                                                             # 4 corners < 0
+    return TraceRectilinearBoundary(occupancy, position_fn)
+
+# TraceRectilinearBoundary (common_geometry, shared with
+# rectilinear2d_boolean's occupancy-grid tracer):
+#   1. LabelComponents: 4-connected flood fill over occupancy
+#   2. CollectBoundaryEdges: axis-aligned edges between a filled and an
+#      unfilled cell, tagged with their component id
+#   3. LinkIntoLoops: chain edges into closed loops per component
+#   4. SimplifyLoop: merge consecutive collinear edges
+#   5. SignedArea: classify each loop as outer (CCW) or hole (CW);
+#      attach holes to their outer polygon (AttachHolesByContainment)
+```
+
+**Diagram** (a diagonal boundary, binarized onto cells -- `■` = inside,
+`·` = outside):
+
+```
+· · ■ ■        Every cell contributes only its own axis-aligned edges --
+· ■ ■ ■        no interpolation -- so the traced boundary is a staircase
+■ ■ ■ ·        along the true diagonal, with every right angle in the
+■ ■ · ·        occupancy grid reproduced exactly.
+```
 
 ## Algorithm: corner sharpening
 
@@ -173,6 +306,37 @@ neighboring edges (`A->B` and `C->D`, extended) intersect, and replaces
 look like a chamfer, it leaves loops without one (e.g. a smooth curve's
 vertices) unchanged -- verified in
 `tests/test_polygon_extractor.cpp`'s `CornerSharpenedAndDualContouringDoNotCorruptCircle`.
+
+**Pseudocode:**
+
+```
+function SharpenCorners(loop, target_angle=135, tolerance=5):
+    result = []
+    for each consecutive vertex pair (B, C) in loop (..., A, B, C, D, ...):
+        angle_B = InteriorAngle(A, B, C)
+        angle_C = InteriorAngle(B, C, D)
+        if |angle_B - target_angle| < tolerance
+           and |angle_C - target_angle| < tolerance:
+            P = LineIntersection(Line(A, B), Line(C, D))
+            result.append(P)          # B, C collapsed to a single point
+            skip C                    # don't re-emit it separately
+        else:
+            result.append(B)          # not a chamfer pair: keep as-is
+    return result
+```
+
+**Diagram:**
+
+```
+Before (marching squares chamfer):     After (SharpenCorners):
+
+  A                                      A
+   ╲                                      ╲
+    B────C   135°, 135°     ==>            P    P = Line(A,B) ∩ Line(C,D),
+   ╱      ╲                                 ╲       the sharp corner B,C
+  ·        D                                 D          implied
+
+```
 
 ### A pitfall this hit: exact/near-zero level-set samples
 
