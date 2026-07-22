@@ -90,7 +90,7 @@ int main() {
   std::cout << "True corner: (" << kCorner.x() << ", " << kCorner.y()
             << "), interior angle 90.0000 degrees (exact, by construction)\n\n";
 
-  for (int cells_across : {8, 120}) {
+  for (int cells_across : {4, 120}) {
     const std::size_t n = static_cast<std::size_t>(cells_across) + 1;
     const Grid2d<double> field = BuildLevelSet(square, n, n, kPadding);
 
@@ -108,7 +108,7 @@ int main() {
                  << std::right << " | " << std::setw(23) << dist << " | "
                  << std::setw(8) << angle << "\n";
 
-      if (cells_across == 8) {
+      if (cells_across == 4) {
         SvgStyle style;
         style.fill = "none";
         style.stroke = "#2563eb";

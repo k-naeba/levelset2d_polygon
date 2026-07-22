@@ -195,28 +195,29 @@ resolution.** Each grid cell only ever contributes straight segments, so a
 90-degree corner is always replaced by a diagonal cut through whichever
 cell it falls in, leaving a vertex that's never actually 90 degrees.
 `analysis/corner_chamfer_analysis.cpp` measures this for all 4 extraction
-methods, at a coarse (8 cells across) and a fine (120 cells across)
+methods, at a coarse (4 cells across) and a fine (120 cells across)
 resolution:
 
 | original | MarchingSquares | CornerSharpened | DualContouring | RectilinearThreshold |
 | --- | --- | --- | --- | --- |
 | <img src="docs/svg/square_Original.svg" width="150"> | <img src="docs/svg/square_MarchingSquares.svg" width="150"> | <img src="docs/svg/square_CornerSharpened.svg" width="150"> | <img src="docs/svg/square_DualContouring.svg" width="150"> | <img src="docs/svg/square_RectilinearThreshold.svg" width="150"> |
 
-(images above are the coarse-resolution reconstructions, where the
-difference between methods is easiest to see without cropping)
+(images above are the coarse-resolution reconstructions, deliberately at a
+very coarse 4x4 grid so the differences between methods are obvious at a
+glance)
 
 Regenerate with `./build/analysis/levelset2d_polygon_corner_chamfer_analysis`;
 measured output (a 10x10 square, corner at the origin -- distance and angle
 of the reconstructed outer loop's vertex nearest that corner):
 
 ```
-cells_across=8 (cell_size=1.5000)
+cells_across=4 (cell_size=3.0000)
   method                | nearest vertex distance | angle
   ----------------------+-------------------------+---------
-  MarchingSquares        |                  0.5000 | 135.0000
+  MarchingSquares        |                  2.0000 | 135.0000
   CornerSharpened        |                  0.0000 |  90.0000
-  DualContouring         |                  0.2564 | 149.2828
-  RectilinearThreshold   |                  0.7071 |  90.0000
+  DualContouring         |                  0.5751 | 118.6357
+  RectilinearThreshold   |                  2.2361 |  90.0000
 
 cells_across=120 (cell_size=0.1000)
   method                | nearest vertex distance | angle
@@ -233,14 +234,17 @@ cells_across=120 (cell_size=0.1000)
   right angle even at the coarse resolution (for different reasons: one by
   detecting and undoing the chamfer, the other by never creating diagonal
   edges in the first place).
-- **DualContouring** only closes in on 90 degrees at the fine resolution.
-  At the coarse resolution its finite-difference gradient estimate near the
-  corner's singularity isn't accurate enough to place the vertex well, so
-  the angle (149 degrees) is actually *worse*-looking than marching
-  squares' consistent 135 -- but its vertex *position* is already
-  measurably closer to the true corner (0.256 vs. 0.5) even there, and it's
-  the only method whose accuracy keeps improving as resolution increases
-  rather than staying fixed.
+- **DualContouring** only closes in on exactly 90 degrees at the fine
+  resolution -- at the coarse resolution its finite-difference gradient
+  estimate near the corner's singularity isn't accurate enough to place the
+  vertex perfectly (118.6 degrees here; how far off varies with exactly
+  where the corner falls within its cell, so this number isn't necessarily
+  monotonic across arbitrary resolutions -- see the git history of this
+  file for a run that measured 149 degrees at a different coarse
+  resolution). What *is* consistent: its vertex *position* is measurably
+  closer to the true corner than marching squares' at every resolution
+  tested (0.575 vs. 2.0 here), and it's the only method whose accuracy
+  keeps improving as resolution increases rather than staying fixed.
 
 ## Directory layout
 
