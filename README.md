@@ -1,9 +1,12 @@
 # levelset2d_polygon
 
 A C++17 header-only library that reconstructs a `ns_cg::Polygon2d` from a
-2D signed-distance level set (`ns_cg::Grid2d<double>`) via marching squares.
-Combined with `common_geometry`'s `BuildLevelSet()`, this closes the round
-trip: `Polygon2d` -> level set -> `Polygon2d`.
+2D signed-distance level set (`ns_cg::Grid2d<double>`), via a choice of 4
+extraction algorithms (marching squares, marching squares + corner
+sharpening, dual contouring, and rectilinear thresholding) selected through
+a `PolygonExtractor` factory. Combined with `common_geometry`'s
+`BuildLevelSet()`, this closes the round trip: `Polygon2d` -> level set ->
+`Polygon2d`.
 
 ## Requirements
 
@@ -52,7 +55,30 @@ Its output (regenerate with
 | --- | --- | --- |
 | <img src="docs/svg/original.svg" width="220"> | <img src="docs/svg/levelset_heatmap.svg" width="220"> | <img src="docs/svg/reconstructed.svg" width="220"> |
 
-## Algorithm
+## Choosing an extraction method
+
+`ExtractPolygons()` (used above) is always marching squares -- a direct,
+dependency-free entry point for the common case. To choose a different
+algorithm, go through the `PolygonExtractor` factory instead:
+
+```cpp
+#include "levelset2d_polygon/levelset2d_polygon.hpp"
+
+std::unique_ptr<ns_ls2p::PolygonExtractor> extractor =
+    ns_ls2p::CreatePolygonExtractor(ns_ls2p::ExtractionMethod::kDualContouring);
+std::vector<ns_cg::Polygon2d> reconstructed = extractor->Extract(field);
+```
+
+| `ExtractionMethod` | What it does | Tradeoff |
+| --- | --- | --- |
+| `kMarchingSquares` | Interpolates the zero crossing linearly along each cell edge (see Algorithm below). | Simple and fast, but a right-angle corner is always cut by a single diagonal segment. |
+| `kMarchingSquaresCornerSharpened` | Runs marching squares, then a post-process that detects vertex pairs shaped like a diagonal chamfer and collapses them back to the sharp corner their neighboring edges imply. | Cheap to add on top of marching squares; a heuristic, so it only helps shapes that actually have a chamfer-like angle pattern. |
+| `kDualContouring` | Places each boundary vertex *inside* its cell (not on an edge), positioned via a least-squares fit (QEF) using the surface normal estimated from the field's gradient at each crossing. | Recovers sharp corners very well *once resolution is fine enough for the gradient estimate to be accurate near the corner*; needs gradient estimation and is more involved than marching squares. |
+| `kRectilinearThreshold` | Binarizes the field per cell (no interpolation at all) and traces axis-aligned cell boundaries -- the same technique `rectilinear2d_boolean` uses for its own occupancy grids, reimplemented locally here (Grid2d is already uniform, so no coordinate-compression step is needed, and no dependency on that project's private internals is taken). | Right angles come out exactly right at any resolution; diagonal or curved boundaries come out blocky/staircased instead of smooth, and the binarize threshold shrinks area at coarse resolution. |
+
+See `analysis/corner_chamfer_analysis.cpp` below for a head-to-head comparison.
+
+## Algorithm: marching squares
 
 1. **`MarchCell`**: for each grid cell, classify its 4 corners as inside
    (value < 0) or outside based on the level set, and linearly interpolate
@@ -75,6 +101,64 @@ Its output (regenerate with
 5. Each loop's signed area (shoelace) classifies it as an outer boundary
    (positive/CCW) or a hole (negative/CW); each hole is attached to
    whichever outer polygon contains it (`ns_cg::PointInPolygon`).
+
+## Algorithm: dual contouring
+
+Reuses marching squares' case table verbatim (same 16 cases, same saddle
+disambiguation) to decide *which pairs* of edge crossings form each
+boundary segment, and its already-validated `LinkIntoLoops`/`SignedArea`
+to link segments into loops -- only the *vertex position* assigned to each
+segment differs:
+
+1. **`EstimateGradient`**: central-difference gradient at each grid node
+   (one-sided at the boundary), an approximation of the outward surface
+   normal (the sign convention -- negative inside -- makes the gradient
+   point toward increasing/outside values naturally).
+2. **`InterpolateNormal`**: for each edge crossing, linearly interpolates
+   the two corner gradients using the same parameter `t` as the crossing's
+   position, then normalizes -- an approximate normal *at* the crossing.
+3. **`SolveQef`**: for a segment's two crossings `(p0,n0)`, `(p1,n1)`,
+   solves the 2x2 least-squares system minimizing
+   `sum_k (n_k . (x - p_k))^2`, placing the vertex where the two
+   crossings' local tangent lines best agree -- which can be *inside* the
+   cell, not confined to an edge. Falls back to the midpoint of `p0,p1` if
+   the system is near-singular (near-parallel normals, i.e. the boundary is
+   locally close to straight -- nothing sharp to resolve there anyway).
+4. **`MarchCellDual`** mirrors `MarchCell`'s case switch, computing a
+   `DualSegment` (the usual straight-line `Edge2d`, purely for linking, plus
+   its `SolveQef`-placed vertex) for each segment instead of just the edge.
+5. After linking (on the plain `Edge2d`s), each loop's edges are looked up
+   in a `(start,end) -> dual vertex` map to build the final polygon.
+
+This depends on gradient accuracy, which finite differences only estimate
+well away from where the *true* gradient is discontinuous -- exactly at a
+corner. See "Choosing an extraction method" above for how that plays out in
+practice (very good once resolution is fine enough, less impressive at
+coarse resolution).
+
+## Algorithm: rectilinear threshold
+
+A cell is "inside" if the average of its 4 corner samples is negative (no
+interpolation). From there it's the same occupancy-grid technique
+`rectilinear2d_boolean` uses (reimplemented locally, since that project's
+`detail::` internals aren't public API and `Grid2d` is already uniform so
+the coordinate-compression step isn't needed here anyway): 4-connected
+flood-fill labeling, axis-aligned boundary-edge collection tagged with
+component id, loop linking, collinear-edge merging, and hole-to-outer
+attachment via `PointInPolygon`.
+
+## Algorithm: corner sharpening
+
+A post-process over `ExtractPolygons()`'s output, not a new extraction
+technique: `detail::SharpenCorners()` scans a loop's vertices for
+consecutive pairs `B,C` whose interior angles are both within a tolerance
+(default 5 degrees) of a target angle (default 135, marching squares'
+characteristic chamfer angle). Where found, it computes where the
+neighboring edges (`A->B` and `C->D`, extended) intersect, and replaces
+`B,C` with that single point. Because it only fires on angle patterns that
+look like a chamfer, it leaves loops without one (e.g. a smooth curve's
+vertices) unchanged -- verified in
+`tests/test_polygon_extractor.cpp`'s `CornerSharpenedAndDualContouringDoNotCorruptCircle`.
 
 ### A pitfall this hit: exact/near-zero level-set samples
 
@@ -109,30 +193,54 @@ rather than a formal proof.
 **Marching squares cannot reproduce a sharp right-angle corner, at any
 resolution.** Each grid cell only ever contributes straight segments, so a
 90-degree corner is always replaced by a diagonal cut through whichever
-cell it falls in, leaving two new vertices that are never actually 90
-degrees. `analysis/corner_chamfer_analysis.cpp` (see below) measures this
-directly.
+cell it falls in, leaving a vertex that's never actually 90 degrees.
+`analysis/corner_chamfer_analysis.cpp` measures this for all 4 extraction
+methods, at a coarse (8 cells across) and a fine (120 cells across)
+resolution:
 
-| original (sharp corners) | reconstructed (chamfered corners) |
-| --- | --- |
-| <img src="docs/svg/square_original_sharp_corners.svg" width="260"> | <img src="docs/svg/square_reconstructed_chamfered_corners.svg" width="260"> |
+| original | MarchingSquares | CornerSharpened | DualContouring | RectilinearThreshold |
+| --- | --- | --- | --- | --- |
+| <img src="docs/svg/square_Original.svg" width="150"> | <img src="docs/svg/square_MarchingSquares.svg" width="150"> | <img src="docs/svg/square_CornerSharpened.svg" width="150"> | <img src="docs/svg/square_DualContouring.svg" width="150"> | <img src="docs/svg/square_RectilinearThreshold.svg" width="150"> |
+
+(images above are the coarse-resolution reconstructions, where the
+difference between methods is easiest to see without cropping)
 
 Regenerate with `./build/analysis/levelset2d_polygon_corner_chamfer_analysis`;
-sample output (a 10x10 square, corner at the origin, coarsest vs. finest of
-the tested resolutions -- the defect is well-known enough that two data
-points make the point):
+measured output (a 10x10 square, corner at the origin -- distance and angle
+of the reconstructed outer loop's vertex nearest that corner):
 
 ```
-cells_across | cell_size | nearest vertex          | 2nd-nearest vertex
--------------+-----------+--------------------------+------------------------
-           8 |    1.5000 | dist=  0.5000 angle=135.0000 | dist=  0.5000 angle=135.0000
-         120 |    0.1000 | dist=  0.1000 angle=135.0000 | dist=  0.1000 angle=135.0000
+cells_across=8 (cell_size=1.5000)
+  method                | nearest vertex distance | angle
+  ----------------------+-------------------------+---------
+  MarchingSquares        |                  0.5000 | 135.0000
+  CornerSharpened        |                  0.0000 |  90.0000
+  DualContouring         |                  0.2564 | 149.2828
+  RectilinearThreshold   |                  0.7071 |  90.0000
+
+cells_across=120 (cell_size=0.1000)
+  method                | nearest vertex distance | angle
+  ----------------------+-------------------------+---------
+  MarchingSquares        |                  0.1000 | 135.0000
+  CornerSharpened        |                  0.0000 |  90.0000
+  DualContouring         |                  0.0000 |  90.0000
+  RectilinearThreshold   |                  0.0000 |  90.0000
 ```
 
-The interior angle at both vertices flanking the cut stays pinned at 135
-degrees (a 45-degree diagonal cut across a 90-degree corner) at both the
-coarse and fine resolution -- refining the grid shrinks how far the cut
-sits from the true corner, but never removes the angular defect itself.
+- **MarchingSquares** stays pinned at exactly 135 degrees at both
+  resolutions -- refining the grid shrinks the cut, never its shape.
+- **CornerSharpened** and **RectilinearThreshold** both recover the exact
+  right angle even at the coarse resolution (for different reasons: one by
+  detecting and undoing the chamfer, the other by never creating diagonal
+  edges in the first place).
+- **DualContouring** only closes in on 90 degrees at the fine resolution.
+  At the coarse resolution its finite-difference gradient estimate near the
+  corner's singularity isn't accurate enough to place the vertex well, so
+  the angle (149 degrees) is actually *worse*-looking than marching
+  squares' consistent 135 -- but its vertex *position* is already
+  measurably closer to the true corner (0.256 vs. 0.5) even there, and it's
+  the only method whose accuracy keeps improving as resolution increases
+  rather than staying fixed.
 
 ## Directory layout
 
