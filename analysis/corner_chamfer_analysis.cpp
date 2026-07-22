@@ -98,7 +98,7 @@ int main() {
     const Grid2d<double> field = BuildLevelSet(square, n, n, kPadding);
 
     std::cout << "cells_across=" << cells_across << " (cell_size=" << field.dx()
-              << ")\n";
+              << ", " << field.nx() << "x" << field.ny() << " grid points)\n";
     std::cout << "  method                | nearest vertex distance | angle\n";
     std::cout << "  ----------------------+-------------------------+---------\n";
 
@@ -112,23 +112,42 @@ int main() {
                  << std::setw(8) << angle << "\n";
 
       if (cells_across == 4) {
+        // The reconstructed polygon, styled exactly as before (blue
+        // outline, unfilled), but now with the sampling grid overlaid as
+        // a dashed mesh and each node pseudocolored by its signed
+        // distance value -- so it's visible at a glance exactly which
+        // sampled values each method had to work with.
         SvgStyle style;
         style.fill = "none";
         style.stroke = "#2563eb";
         style.stroke_width = 0.08;
+        style.heatmap_show_grid = true;
+        style.heatmap_grid_dashed = true;
+        style.heatmap_fill_cells = false;
+        style.heatmap_show_points = true;
         const std::string path =
             std::string("square_") + MethodName(method) + ".svg";
-        WriteSvgFile(path, reconstructed, style);
+        WriteSvgFile(path, field, reconstructed, style);
       }
+    }
+
+    if (cells_across == 4) {
+      // Reference row: the true square (no extraction involved) with the
+      // same grid overlay, so the table's other columns can be compared
+      // against exactly the input every method was given.
+      SvgStyle sharp_style;
+      sharp_style.fill = "none";
+      sharp_style.stroke = "#dc2626";
+      sharp_style.stroke_width = 0.08;
+      sharp_style.heatmap_show_grid = true;
+      sharp_style.heatmap_grid_dashed = true;
+      sharp_style.heatmap_fill_cells = false;
+      sharp_style.heatmap_show_points = true;
+      WriteSvgFile("square_Original.svg", field,
+                   std::vector<Polygon2d>{square}, sharp_style);
     }
     std::cout << "\n";
   }
-
-  SvgStyle sharp_style;
-  sharp_style.fill = "none";
-  sharp_style.stroke = "#dc2626";
-  sharp_style.stroke_width = 0.08;
-  WriteSvgFile("square_Original.svg", std::vector<Polygon2d>{square}, sharp_style);
 
   std::cout << "MarchingSquares stays pinned at a 135-degree angle at both\n"
                "resolutions -- only the cut's size shrinks, never its shape.\n"

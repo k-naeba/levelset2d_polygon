@@ -373,16 +373,29 @@ resolution.** Each grid cell only ever contributes straight segments, so a
 90-degree corner is always replaced by a diagonal cut through whichever
 cell it falls in, leaving a vertex that's never actually 90 degrees.
 `analysis/corner_chamfer_analysis.cpp` measures this for all 5 extraction
-methods, at a coarse (4 cells across) and a fine (120 cells across)
-resolution:
+methods, at a coarse (4 cells across, i.e. a 5x5-point sampling grid) and
+a fine (120 cells across, 121x121 points) resolution:
 
 | original | MarchingSquares | CornerSharpened | DualContouring | SurfaceNets | RectilinearThreshold |
 | --- | --- | --- | --- | --- | --- |
 | <img src="docs/svg/square_Original.svg" width="150"> | <img src="docs/svg/square_MarchingSquares.svg" width="150"> | <img src="docs/svg/square_CornerSharpened.svg" width="150"> | <img src="docs/svg/square_DualContouring.svg" width="150"> | <img src="docs/svg/square_SurfaceNets.svg" width="150"> | <img src="docs/svg/square_RectilinearThreshold.svg" width="150"> |
 
 (images above are the coarse-resolution reconstructions, deliberately at a
-very coarse 4x4 grid so the differences between methods are obvious at a
-glance)
+very coarse 4x4-cell grid so the differences between methods are obvious
+at a glance)
+
+Each image overlays the actual signed-distance level set every method is
+reconstructing from at that resolution, via `svg.hpp`'s
+`SvgStyle::heatmap_*` options: the 5x5-point sampling grid as a dotted
+mesh (`heatmap_show_grid` + `heatmap_grid_dashed`, line thickness matching
+the reconstructed polygon's own `stroke_width` so they read as one
+consistent drawing), and each node pseudocolored by its signed-distance
+value (`heatmap_show_points`; blue = inside, red = outside, white = zero;
+`heatmap_fill_cells = false` keeps the cells themselves unfilled so the
+mesh and points stay legible against the polygon outline). Every method
+only ever sees these 25 sampled values -- not the square itself -- which
+is why the corner reconstruction is only ever as good as what a 5x5
+sampling of the level set can resolve.
 
 Regenerate with `./build/analysis/levelset2d_polygon_corner_chamfer_analysis`;
 measured output (a 10x10 square, corner at the origin -- distance and angle
