@@ -35,16 +35,7 @@ inline std::vector<ns_cg::Polygon2d> ExtractPolygons(
     }
   }
 
-  // Attach each hole to the outer polygon that contains it.
-  for (auto& hole : holes) {
-    if (hole.empty()) continue;
-    for (auto& poly : result) {
-      if (ns_cg::PointInPolygon(hole.front(), poly.GetOuter())) {
-        poly.GetHoles().push_back(std::move(hole));
-        break;
-      }
-    }
-  }
+  ns_cg::AttachHolesByContainment(result, std::move(holes));
   return result;
 }
 
