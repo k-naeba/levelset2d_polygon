@@ -1,12 +1,12 @@
 # levelset2d_polygon
 
 A C++17 header-only library that reconstructs a `ns_cg::Polygon2d` from a
-2D signed-distance level set (`ns_cg::Grid2d<double>`), via a choice of 4
+2D signed-distance level set (`ns_cg::Grid2d<double>`), via a choice of 5
 extraction algorithms (marching squares, marching squares + corner
-sharpening, dual contouring, and rectilinear thresholding) selected through
-a `PolygonExtractor` factory. Combined with `common_geometry`'s
-`BuildLevelSet()`, this closes the round trip: `Polygon2d` -> level set ->
-`Polygon2d`.
+sharpening, dual contouring, surface nets, and rectilinear thresholding)
+selected through a `PolygonExtractor` factory. Combined with
+`common_geometry`'s `BuildLevelSet()`, this closes the round trip:
+`Polygon2d` -> level set -> `Polygon2d`.
 
 ## Requirements
 
@@ -74,6 +74,7 @@ std::vector<ns_cg::Polygon2d> reconstructed = extractor->Extract(field);
 | `kMarchingSquares` | Interpolates the zero crossing linearly along each cell edge (see Algorithm below). | Simple and fast, but a right-angle corner is always cut by a single diagonal segment. |
 | `kMarchingSquaresCornerSharpened` | Runs marching squares, then a post-process that detects vertex pairs shaped like a diagonal chamfer and collapses them back to the sharp corner their neighboring edges imply. | Cheap to add on top of marching squares; a heuristic, so it only helps shapes that actually have a chamfer-like angle pattern. |
 | `kDualContouring` | Places each boundary vertex *inside* its cell (not on an edge), positioned via a least-squares fit (QEF) using the surface normal estimated from the field's gradient at each crossing. | Recovers sharp corners very well *once resolution is fine enough for the gradient estimate to be accurate near the corner*; needs gradient estimation and is more involved than marching squares. |
+| `kSurfaceNets` | Like `kDualContouring`, places each vertex inside its cell rather than on an edge, but simply at the midpoint of the segment's two edge crossings -- no gradient/normal estimation at all. | No gradient estimation needed, simpler than dual contouring; moves the vertex closer to the true corner than marching squares, but (lacking normal information) its angle does not reliably converge to exactly 90 degrees the way dual contouring's does. |
 | `kRectilinearThreshold` | Binarizes the field per cell (no interpolation at all) and traces axis-aligned cell boundaries -- the same technique `rectilinear2d_boolean` uses for its own occupancy grids, reimplemented locally here (Grid2d is already uniform, so no coordinate-compression step is needed, and no dependency on that project's private internals is taken). | Right angles come out exactly right at any resolution; diagonal or curved boundaries come out blocky/staircased instead of smooth, and the binarize threshold shrinks area at coarse resolution. |
 
 See `analysis/corner_chamfer_analysis.cpp` below for a head-to-head comparison.
@@ -136,6 +137,19 @@ corner. See "Choosing an extraction method" above for how that plays out in
 practice (very good once resolution is fine enough, less impressive at
 coarse resolution).
 
+## Algorithm: surface nets
+
+A simpler sibling of dual contouring, reusing the same case table,
+`LinkIntoLoops`, and `SignedArea`, and differing only in vertex placement:
+`MarchCellSurfaceNets` places each segment's vertex at the plain midpoint
+of its two edge crossings (`0.5 * (a + b)`), with no gradient estimation or
+QEF solve at all. This still pulls the vertex off the cell edge and closer
+to a sharp feature than marching squares' edge-constrained placement, but
+without normal information to orient it, the result doesn't converge to
+the *exact* corner angle as resolution increases the way dual contouring's
+does -- see the measured numbers in Limitations below (distance improves
+at both resolutions tested; angle does not reliably approach 90 degrees).
+
 ## Algorithm: rectilinear threshold
 
 A cell is "inside" if the average of its 4 corner samples is negative (no
@@ -194,13 +208,13 @@ rather than a formal proof.
 resolution.** Each grid cell only ever contributes straight segments, so a
 90-degree corner is always replaced by a diagonal cut through whichever
 cell it falls in, leaving a vertex that's never actually 90 degrees.
-`analysis/corner_chamfer_analysis.cpp` measures this for all 4 extraction
+`analysis/corner_chamfer_analysis.cpp` measures this for all 5 extraction
 methods, at a coarse (4 cells across) and a fine (120 cells across)
 resolution:
 
-| original | MarchingSquares | CornerSharpened | DualContouring | RectilinearThreshold |
-| --- | --- | --- | --- | --- |
-| <img src="docs/svg/square_Original.svg" width="150"> | <img src="docs/svg/square_MarchingSquares.svg" width="150"> | <img src="docs/svg/square_CornerSharpened.svg" width="150"> | <img src="docs/svg/square_DualContouring.svg" width="150"> | <img src="docs/svg/square_RectilinearThreshold.svg" width="150"> |
+| original | MarchingSquares | CornerSharpened | DualContouring | SurfaceNets | RectilinearThreshold |
+| --- | --- | --- | --- | --- | --- |
+| <img src="docs/svg/square_Original.svg" width="150"> | <img src="docs/svg/square_MarchingSquares.svg" width="150"> | <img src="docs/svg/square_CornerSharpened.svg" width="150"> | <img src="docs/svg/square_DualContouring.svg" width="150"> | <img src="docs/svg/square_SurfaceNets.svg" width="150"> | <img src="docs/svg/square_RectilinearThreshold.svg" width="150"> |
 
 (images above are the coarse-resolution reconstructions, deliberately at a
 very coarse 4x4 grid so the differences between methods are obvious at a
@@ -217,6 +231,7 @@ cells_across=4 (cell_size=3.0000)
   MarchingSquares        |                  2.0000 | 135.0000
   CornerSharpened        |                  0.0000 |  90.0000
   DualContouring         |                  0.5751 | 118.6357
+  SurfaceNets            |                  1.4142 | 133.6028
   RectilinearThreshold   |                  2.2361 |  90.0000
 
 cells_across=120 (cell_size=0.1000)
@@ -225,6 +240,7 @@ cells_across=120 (cell_size=0.1000)
   MarchingSquares        |                  0.1000 | 135.0000
   CornerSharpened        |                  0.0000 |  90.0000
   DualContouring         |                  0.0000 |  90.0000
+  SurfaceNets            |                  0.0707 | 143.1301
   RectilinearThreshold   |                  0.0000 |  90.0000
 ```
 
@@ -245,6 +261,14 @@ cells_across=120 (cell_size=0.1000)
   closer to the true corner than marching squares' at every resolution
   tested (0.575 vs. 2.0 here), and it's the only method whose accuracy
   keeps improving as resolution increases rather than staying fixed.
+- **SurfaceNets** also places its vertex closer to the true corner than
+  marching squares at both resolutions (1.414 vs. 2.0 coarse, 0.071 vs.
+  0.1 fine), but -- lacking any normal information to orient the
+  placement -- its *angle* does not converge toward 90 degrees as
+  resolution increases; it's actually further from 90 at the fine
+  resolution (143.1 degrees) than at the coarse one (133.6 degrees). This
+  is the key tradeoff versus dual contouring: cheaper and simpler, but no
+  convergence guarantee on angle, only on position.
 
 ## Directory layout
 

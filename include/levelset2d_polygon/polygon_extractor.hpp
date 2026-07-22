@@ -15,6 +15,7 @@ enum class ExtractionMethod {
   kMarchingSquares,                // baseline: see marching_squares.hpp
   kMarchingSquaresCornerSharpened, // baseline + a corner-sharpening post-process
   kDualContouring,                 // per-segment vertex placement using estimated normals
+  kSurfaceNets,                    // per-segment vertex placement at the crossing midpoint
   kRectilinearThreshold,           // binarize + axis-aligned boundary tracing, no interpolation
 };
 

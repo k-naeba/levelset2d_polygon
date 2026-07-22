@@ -1,10 +1,10 @@
-// Analysis (not a usage example): compares all 4 polygon extraction
+// Analysis (not a usage example): compares all 5 polygon extraction
 // methods (see polygon_extractor.hpp) on how well they reproduce a sharp
 // right-angle corner. Baseline marching squares always replaces a 90
 // degree corner with a diagonal cut -- two new vertices near the true
 // corner, each at a 135-degree angle, regardless of grid resolution (only
 // the cut's size shrinks). This program measures the same corner across
-// the other 3 methods too, at a coarse and a fine resolution, and exports
+// the other 4 methods too, at a coarse and a fine resolution, and exports
 // SVGs comparing them directly.
 
 #include <algorithm>
@@ -50,6 +50,8 @@ const char* MethodName(ExtractionMethod method) {
       return "CornerSharpened";
     case ExtractionMethod::kDualContouring:
       return "DualContouring";
+    case ExtractionMethod::kSurfaceNets:
+      return "SurfaceNets";
     case ExtractionMethod::kRectilinearThreshold:
       return "RectilinearThreshold";
   }
@@ -83,6 +85,7 @@ int main() {
       ExtractionMethod::kMarchingSquares,
       ExtractionMethod::kMarchingSquaresCornerSharpened,
       ExtractionMethod::kDualContouring,
+      ExtractionMethod::kSurfaceNets,
       ExtractionMethod::kRectilinearThreshold,
   };
 
@@ -136,6 +139,11 @@ int main() {
                "corner's singularity is too coarse to place the vertex well\n"
                "at low resolution), but even at the coarse resolution its\n"
                "vertex position is measurably closer to the true corner than\n"
-               "MarchingSquares' edge-constrained placement.\n";
+               "MarchingSquares' edge-constrained placement.\n"
+               "SurfaceNets (a gradient-free sibling of DualContouring) also\n"
+               "moves the vertex closer to the true corner than MarchingSquares\n"
+               "at both resolutions, but since it has no normal information to\n"
+               "guide the placement, its angle does not converge to 90 degrees\n"
+               "at fine resolution the way DualContouring's does.\n";
   return 0;
 }

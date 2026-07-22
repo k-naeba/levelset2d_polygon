@@ -10,6 +10,7 @@
 #include "levelset2d_polygon/detail/dual_contouring.hpp"
 #include "levelset2d_polygon/detail/marching_squares.hpp"
 #include "levelset2d_polygon/detail/rectilinear_threshold.hpp"
+#include "levelset2d_polygon/detail/surface_nets.hpp"
 #include "levelset2d_polygon/marching_squares.hpp"
 
 // Concrete PolygonExtractor implementations and the CreatePolygonExtractor
@@ -63,6 +64,19 @@ public:
   }
 };
 
+// A simpler sibling of DualContouringExtractor: each boundary segment's
+// vertex is the midpoint of its two edge crossings, rather than a
+// QEF-fitted point from estimated normals. No gradient estimation needed,
+// simpler to reason about, but doesn't pull the vertex toward a sharp
+// corner as effectively as the QEF solve does.
+class SurfaceNetsExtractor : public PolygonExtractor {
+public:
+  std::vector<ns_cg::Polygon2d> Extract(
+      const ns_cg::Grid2d<double>& field) const override {
+    return ExtractPolygonsSurfaceNets(field);
+  }
+};
+
 // Binarizes the field per grid cell (no interpolation at all) and traces
 // axis-aligned cell boundaries, the same technique rectilinear2d_boolean
 // uses for its own occupancy grids. Right angles are reproduced exactly
@@ -89,6 +103,8 @@ inline std::unique_ptr<PolygonExtractor> CreatePolygonExtractor(
       return std::make_unique<detail::MarchingSquaresCornerSharpenedExtractor>();
     case ExtractionMethod::kDualContouring:
       return std::make_unique<detail::DualContouringExtractor>();
+    case ExtractionMethod::kSurfaceNets:
+      return std::make_unique<detail::SurfaceNetsExtractor>();
     case ExtractionMethod::kRectilinearThreshold:
       return std::make_unique<detail::RectilinearThresholdExtractor>();
   }

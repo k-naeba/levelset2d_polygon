@@ -60,6 +60,7 @@ TEST(PolygonExtractorTest, AllMethodsReconstructSquareWithReasonableArea) {
   for (auto method : {ExtractionMethod::kMarchingSquares,
                        ExtractionMethod::kMarchingSquaresCornerSharpened,
                        ExtractionMethod::kDualContouring,
+                       ExtractionMethod::kSurfaceNets,
                        ExtractionMethod::kRectilinearThreshold}) {
     auto extractor = CreatePolygonExtractor(method);
     const std::vector<Polygon2d> result = extractor->Extract(field);
@@ -131,6 +132,32 @@ TEST(PolygonExtractorTest, DualContouringMovesCornerCloserThanMarchingSquaresEve
   EXPECT_LT(nearest_dist(dc[0].GetOuter()), nearest_dist(ms[0].GetOuter()));
 }
 
+TEST(PolygonExtractorTest, SurfaceNetsMovesCornerCloserThanMarchingSquares) {
+  const Polygon2d square = MakeSquare(10.0);
+  const Vec2d corner(0.0, 0.0);
+
+  auto nearest_dist = [&](const std::vector<Vec2d>& outer) {
+    double best = std::numeric_limits<double>::max();
+    for (const auto& v : outer) best = std::min(best, (v - corner).norm());
+    return best;
+  };
+
+  // Unlike DualContouring, SurfaceNets doesn't use gradient/normal
+  // information -- each segment's vertex is just the midpoint of its two
+  // edge crossings -- so it has no guarantee of converging to exactly 90
+  // degrees as resolution increases (verified: it doesn't, at either
+  // resolution tested below). What it *does* reliably do is place the
+  // vertex closer to the true corner than marching squares' edge-
+  // constrained placement, at both a coarse and a fine resolution.
+  for (std::size_t n : {std::size_t{5}, std::size_t{121}}) {
+    const Grid2d<double> field = BuildLevelSet(square, n, n, 1.0);
+    auto ms = CreatePolygonExtractor(ExtractionMethod::kMarchingSquares)->Extract(field);
+    auto sn = CreatePolygonExtractor(ExtractionMethod::kSurfaceNets)->Extract(field);
+    EXPECT_LT(nearest_dist(sn[0].GetOuter()), nearest_dist(ms[0].GetOuter()))
+        << "n=" << n;
+  }
+}
+
 TEST(PolygonExtractorTest, CornerSharpenedAndDualContouringDoNotCorruptCircle) {
   constexpr double kRadius = 5.0;
   constexpr int kSides = 64;
@@ -145,7 +172,8 @@ TEST(PolygonExtractorTest, CornerSharpenedAndDualContouringDoNotCorruptCircle) {
   const double analytic_area = M_PI * kRadius * kRadius;
 
   for (auto method : {ExtractionMethod::kMarchingSquaresCornerSharpened,
-                       ExtractionMethod::kDualContouring}) {
+                       ExtractionMethod::kDualContouring,
+                       ExtractionMethod::kSurfaceNets}) {
     auto extractor = CreatePolygonExtractor(method);
     const std::vector<Polygon2d> result = extractor->Extract(field);
     ASSERT_EQ(result.size(), 1u) << "method=" << static_cast<int>(method);
@@ -163,6 +191,7 @@ TEST(PolygonExtractorTest, AllMethodsHandleRingWithHole) {
   for (auto method : {ExtractionMethod::kMarchingSquares,
                        ExtractionMethod::kMarchingSquaresCornerSharpened,
                        ExtractionMethod::kDualContouring,
+                       ExtractionMethod::kSurfaceNets,
                        ExtractionMethod::kRectilinearThreshold}) {
     auto extractor = CreatePolygonExtractor(method);
     const std::vector<Polygon2d> result = extractor->Extract(field);
