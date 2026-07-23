@@ -53,11 +53,17 @@ Its output (regenerate with
 
 <table>
 <tr>
-<td align="center" width="220">original<br><img src="docs/svg/original.svg" width="220" height="220"></td>
-<td align="center" width="220">level set heatmap<br><img src="docs/svg/levelset_heatmap.svg" width="220" height="220"></td>
-<td align="center" width="220">reconstructed<br><img src="docs/svg/reconstructed.svg" width="220" height="220"></td>
+<td align="center">original<br><img src="docs/svg/original.svg"></td>
+<td align="center">level set heatmap<br><img src="docs/svg/levelset_heatmap.svg"></td>
+<td align="center">reconstructed<br><img src="docs/svg/reconstructed.svg"></td>
 </tr>
 </table>
+
+(GitHub does not reliably honor an `<img>` tag's `width`/`height`
+override for locally-referenced SVGs, so these three -- and every
+comparison image below -- have their intended display size baked into
+the SVG file itself instead; see `examples/roundtrip_demo.cpp` /
+`analysis/corner_chamfer_analysis.cpp`'s `SvgStyle::target_width_px`.)
 
 ## Choosing an extraction method
 
@@ -382,12 +388,12 @@ a fine (120 cells across, 121x121 points) resolution:
 
 <table>
 <tr>
-<td align="center" width="150">original<br><img src="docs/svg/square_Original.svg" width="150" height="150"></td>
-<td align="center" width="150">MarchingSquares<br><img src="docs/svg/square_MarchingSquares.svg" width="150" height="150"></td>
-<td align="center" width="150">CornerSharpened<br><img src="docs/svg/square_CornerSharpened.svg" width="150" height="150"></td>
-<td align="center" width="150">DualContouring<br><img src="docs/svg/square_DualContouring.svg" width="150" height="150"></td>
-<td align="center" width="150">SurfaceNets<br><img src="docs/svg/square_SurfaceNets.svg" width="150" height="150"></td>
-<td align="center" width="150">RectilinearThreshold<br><img src="docs/svg/square_RectilinearThreshold.svg" width="150" height="150"></td>
+<td align="center">original<br><img src="docs/svg/square_Original.svg"></td>
+<td align="center">MarchingSquares<br><img src="docs/svg/square_MarchingSquares.svg"></td>
+<td align="center">CornerSharpened<br><img src="docs/svg/square_CornerSharpened.svg"></td>
+<td align="center">DualContouring<br><img src="docs/svg/square_DualContouring.svg"></td>
+<td align="center">SurfaceNets<br><img src="docs/svg/square_SurfaceNets.svg"></td>
+<td align="center">RectilinearThreshold<br><img src="docs/svg/square_RectilinearThreshold.svg"></td>
 </tr>
 </table>
 

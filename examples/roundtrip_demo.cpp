@@ -49,16 +49,23 @@ int main() {
     std::cout << "\n";
   }
 
+  // GitHub's README renderer does not reliably honor an <img> tag's
+  // width/height override for locally-referenced SVGs, so the desired
+  // display size is baked into the SVG itself here (via target_width_px)
+  // rather than relied on at the markdown layer -- see the README's
+  // image tables, which reference these files with no size attributes.
   SvgStyle style;
   style.fill = "#22c55e";
   style.stroke = "black";
   style.stroke_width = 0.05;
+  style.target_width_px = 200.0;
   WriteSvgFile("original.svg", std::vector<Polygon2d>{original}, style);
   WriteSvgFile("reconstructed.svg", reconstructed, style);
 
   SvgStyle heatmap_style;
   heatmap_style.stroke = "black";
   heatmap_style.stroke_width = 0.1;
+  heatmap_style.target_width_px = 200.0;
   WriteSvgFile("levelset_heatmap.svg", field, original, heatmap_style);
 
   std::cout << "wrote original.svg, reconstructed.svg, levelset_heatmap.svg\n";

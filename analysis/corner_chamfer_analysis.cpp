@@ -117,6 +117,13 @@ int main() {
         // a dashed mesh and each node pseudocolored by its signed
         // distance value -- so it's visible at a glance exactly which
         // sampled values each method had to work with.
+        //
+        // target_width_px is set explicitly (rather than left at the
+        // 800px default) because GitHub's README renderer does not
+        // reliably honor an <img> width/height override for locally
+        // referenced SVGs -- baking the intended display size into the
+        // SVG itself, identically across all 6 images in this table, is
+        // what actually keeps them the same size side by side.
         SvgStyle style;
         style.fill = "none";
         style.stroke = "#2563eb";
@@ -125,6 +132,7 @@ int main() {
         style.heatmap_grid_dashed = true;
         style.heatmap_fill_cells = false;
         style.heatmap_show_points = true;
+        style.target_width_px = 120.0;
         const std::string path =
             std::string("square_") + MethodName(method) + ".svg";
         WriteSvgFile(path, field, reconstructed, style);
@@ -143,6 +151,7 @@ int main() {
       sharp_style.heatmap_grid_dashed = true;
       sharp_style.heatmap_fill_cells = false;
       sharp_style.heatmap_show_points = true;
+      sharp_style.target_width_px = 120.0;
       WriteSvgFile("square_Original.svg", field,
                    std::vector<Polygon2d>{square}, sharp_style);
     }
