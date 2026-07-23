@@ -392,14 +392,16 @@ cell it falls in, leaving a vertex that's never actually 90 degrees.
 methods, at a coarse (4 cells across, i.e. a 5x5-point sampling grid) and
 a fine (120 cells across, 121x121 points) resolution:
 
-Left to right: original, MarchingSquares, CornerSharpened, DualContouring,
-SurfaceNets, RectilinearThreshold.
+Top row: original, MarchingSquares, CornerSharpened. Bottom row:
+DualContouring, SurfaceNets, RectilinearThreshold.
 
 <table>
 <tr>
 <td align="center"><img src="docs/svg/square_Original.svg"></td>
 <td align="center"><img src="docs/svg/square_MarchingSquares.svg"></td>
 <td align="center"><img src="docs/svg/square_CornerSharpened.svg"></td>
+</tr>
+<tr>
 <td align="center"><img src="docs/svg/square_DualContouring.svg"></td>
 <td align="center"><img src="docs/svg/square_SurfaceNets.svg"></td>
 <td align="center"><img src="docs/svg/square_RectilinearThreshold.svg"></td>

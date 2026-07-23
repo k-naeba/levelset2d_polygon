@@ -123,7 +123,9 @@ int main() {
         // reliably honor an <img> width/height override for locally
         // referenced SVGs -- baking the intended display size into the
         // SVG itself, identically across all 6 images in this table, is
-        // what actually keeps them the same size side by side.
+        // what actually keeps them the same size as each other. The
+        // README lays these out as a 3x2 grid (not a single row of 6)
+        // so this can be reasonably large without the table overflowing.
         SvgStyle style;
         style.fill = "none";
         style.stroke = "#2563eb";
@@ -132,7 +134,7 @@ int main() {
         style.heatmap_grid_dashed = true;
         style.heatmap_fill_cells = false;
         style.heatmap_show_points = true;
-        style.target_width_px = 120.0;
+        style.target_width_px = 220.0;
         const std::string path =
             std::string("square_") + MethodName(method) + ".svg";
         WriteSvgFile(path, field, reconstructed, style);
@@ -151,7 +153,7 @@ int main() {
       sharp_style.heatmap_grid_dashed = true;
       sharp_style.heatmap_fill_cells = false;
       sharp_style.heatmap_show_points = true;
-      sharp_style.target_width_px = 120.0;
+      sharp_style.target_width_px = 220.0;
       WriteSvgFile("square_Original.svg", field,
                    std::vector<Polygon2d>{square}, sharp_style);
     }
