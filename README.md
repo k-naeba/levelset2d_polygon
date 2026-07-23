@@ -51,19 +51,25 @@ outside) with the source polygon outlined on top, via `svg.hpp`'s
 Its output (regenerate with
 `./build/examples/levelset2d_polygon_roundtrip_demo`):
 
+Left to right: original, level set heatmap, reconstructed.
+
 <table>
 <tr>
-<td align="center">original<br><img src="docs/svg/original.svg"></td>
-<td align="center">level set heatmap<br><img src="docs/svg/levelset_heatmap.svg"></td>
-<td align="center">reconstructed<br><img src="docs/svg/reconstructed.svg"></td>
+<td align="center"><img src="docs/svg/original.svg"></td>
+<td align="center"><img src="docs/svg/levelset_heatmap.svg"></td>
+<td align="center"><img src="docs/svg/reconstructed.svg"></td>
 </tr>
 </table>
 
-(GitHub does not reliably honor an `<img>` tag's `width`/`height`
-override for locally-referenced SVGs, so these three -- and every
-comparison image below -- have their intended display size baked into
-the SVG file itself instead; see `examples/roundtrip_demo.cpp` /
-`analysis/corner_chamfer_analysis.cpp`'s `SvgStyle::target_width_px`.)
+(Two things keep these -- and every comparison image below -- the same
+size as each other on GitHub: their intended display size is baked
+into the SVG file itself, via `SvgStyle::target_width_px`, since GitHub
+does not reliably honor an `<img>` tag's `width`/`height` override for
+locally-referenced SVGs; and each image is the *only* content in its
+table cell, since GitHub's table layout sizes a column to fit any text
+sharing that column, which then squeezes a differently-sized image
+into each column -- hence the caption living outside the table above,
+not inline with each image.)
 
 ## Choosing an extraction method
 
@@ -386,14 +392,17 @@ cell it falls in, leaving a vertex that's never actually 90 degrees.
 methods, at a coarse (4 cells across, i.e. a 5x5-point sampling grid) and
 a fine (120 cells across, 121x121 points) resolution:
 
+Left to right: original, MarchingSquares, CornerSharpened, DualContouring,
+SurfaceNets, RectilinearThreshold.
+
 <table>
 <tr>
-<td align="center">original<br><img src="docs/svg/square_Original.svg"></td>
-<td align="center">MarchingSquares<br><img src="docs/svg/square_MarchingSquares.svg"></td>
-<td align="center">CornerSharpened<br><img src="docs/svg/square_CornerSharpened.svg"></td>
-<td align="center">DualContouring<br><img src="docs/svg/square_DualContouring.svg"></td>
-<td align="center">SurfaceNets<br><img src="docs/svg/square_SurfaceNets.svg"></td>
-<td align="center">RectilinearThreshold<br><img src="docs/svg/square_RectilinearThreshold.svg"></td>
+<td align="center"><img src="docs/svg/square_Original.svg"></td>
+<td align="center"><img src="docs/svg/square_MarchingSquares.svg"></td>
+<td align="center"><img src="docs/svg/square_CornerSharpened.svg"></td>
+<td align="center"><img src="docs/svg/square_DualContouring.svg"></td>
+<td align="center"><img src="docs/svg/square_SurfaceNets.svg"></td>
+<td align="center"><img src="docs/svg/square_RectilinearThreshold.svg"></td>
 </tr>
 </table>
 
