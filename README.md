@@ -51,9 +51,13 @@ outside) with the source polygon outlined on top, via `svg.hpp`'s
 Its output (regenerate with
 `./build/examples/levelset2d_polygon_roundtrip_demo`):
 
-| original | level set heatmap | reconstructed |
-| --- | --- | --- |
-| <img src="docs/svg/original.svg" width="220"> | <img src="docs/svg/levelset_heatmap.svg" width="220"> | <img src="docs/svg/reconstructed.svg" width="220"> |
+<table>
+<tr>
+<td align="center" width="220">original<br><img src="docs/svg/original.svg" width="220" height="220"></td>
+<td align="center" width="220">level set heatmap<br><img src="docs/svg/levelset_heatmap.svg" width="220" height="220"></td>
+<td align="center" width="220">reconstructed<br><img src="docs/svg/reconstructed.svg" width="220" height="220"></td>
+</tr>
+</table>
 
 ## Choosing an extraction method
 
@@ -376,9 +380,16 @@ cell it falls in, leaving a vertex that's never actually 90 degrees.
 methods, at a coarse (4 cells across, i.e. a 5x5-point sampling grid) and
 a fine (120 cells across, 121x121 points) resolution:
 
-| original | MarchingSquares | CornerSharpened | DualContouring | SurfaceNets | RectilinearThreshold |
-| --- | --- | --- | --- | --- | --- |
-| <img src="docs/svg/square_Original.svg" width="150"> | <img src="docs/svg/square_MarchingSquares.svg" width="150"> | <img src="docs/svg/square_CornerSharpened.svg" width="150"> | <img src="docs/svg/square_DualContouring.svg" width="150"> | <img src="docs/svg/square_SurfaceNets.svg" width="150"> | <img src="docs/svg/square_RectilinearThreshold.svg" width="150"> |
+<table>
+<tr>
+<td align="center" width="150">original<br><img src="docs/svg/square_Original.svg" width="150" height="150"></td>
+<td align="center" width="150">MarchingSquares<br><img src="docs/svg/square_MarchingSquares.svg" width="150" height="150"></td>
+<td align="center" width="150">CornerSharpened<br><img src="docs/svg/square_CornerSharpened.svg" width="150" height="150"></td>
+<td align="center" width="150">DualContouring<br><img src="docs/svg/square_DualContouring.svg" width="150" height="150"></td>
+<td align="center" width="150">SurfaceNets<br><img src="docs/svg/square_SurfaceNets.svg" width="150" height="150"></td>
+<td align="center" width="150">RectilinearThreshold<br><img src="docs/svg/square_RectilinearThreshold.svg" width="150" height="150"></td>
+</tr>
+</table>
 
 (images above are the coarse-resolution reconstructions, deliberately at a
 very coarse 4x4-cell grid so the differences between methods are obvious
